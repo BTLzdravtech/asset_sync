@@ -56,7 +56,7 @@ module AssetSync
       self.always_upload = []
       self.ignored_files = []
       self.custom_headers = {}
-      self.enabled = true
+      self.enabled = false
       self.run_on_precompile = true
       self.cdn_distribution_id = nil
       self.invalidate = []
@@ -114,11 +114,9 @@ module AssetSync
     end
 
     def yml
-      begin
-        @yml ||= YAML.load(ERB.new(IO.read(yml_path)).result)[Rails.env] rescue nil || {}
-      rescue Psych::SyntaxError
-        @yml = {}
-      end
+      @yml ||= YAML.load(ERB.new(IO.read(yml_path)).result)[Rails.env] || {}
+    rescue Psych::SyntaxError
+      @yml = {}
     end
 
     def yml_path
