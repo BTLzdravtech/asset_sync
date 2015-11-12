@@ -56,7 +56,7 @@ module AssetSync
       self.always_upload = []
       self.ignored_files = []
       self.custom_headers = {}
-      self.enabled = false
+      self.enabled = true
       self.run_on_precompile = true
       self.cdn_distribution_id = nil
       self.invalidate = []
