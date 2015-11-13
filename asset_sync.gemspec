@@ -7,7 +7,6 @@ Gem::Specification.new do |s|
   s.name        = "asset_sync"
   s.version     = AssetSync::VERSION
   s.date        = "2013-08-26"
-  s.platform    = Gem::Platform::RUBY
   s.authors     = ["Simon Hamilton", "David Rice", "Phil McClure", "Toby Osbourn"]
   s.email       = ["shamilton@rumblelabs.com", "me@davidjrice.co.uk", "pmcclure@rumblelabs.com", "tosbourn@rumblelabs.com"]
   s.homepage    = "https://github.com/rumblelabs/asset_sync"
