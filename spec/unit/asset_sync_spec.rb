@@ -12,6 +12,7 @@ describe AssetSync do
         config.aws_secret_access_key = 'bbbb'
         config.fog_directory = 'mybucket'
         config.fog_region = 'eu-west-1'
+        config.fog_path_style = 'true'
         config.existing_remote_files = "keep"
       end
     end
@@ -50,6 +51,10 @@ describe AssetSync do
       expect(AssetSync.config.fog_region).to eq("eu-west-1")
     end
 
+    it "should configure path_style" do
+      expect(AssetSync.config.fog_path_style).to be_truthy
+    end
+
     it "should configure existing_remote_files" do
       expect(AssetSync.config.existing_remote_files).to eq("keep")
     end
@@ -66,12 +71,28 @@ describe AssetSync do
       expect(AssetSync.config.log_silently).to be_truthy
     end
 
+    it "log_silently? should reflect the configuration" do
+      AssetSync.config.log_silently = false
+      expect(AssetSync.config.log_silently?).to eq(false)
+    end
+
+    it "log_silently? should always be true if ENV['RAILS_GROUPS'] == 'assets'" do
+      AssetSync.config.log_silently = false
+      allow(ENV).to receive(:[]).with('RAILS_GROUPS').and_return('assets')
+
+      expect(AssetSync.config.log_silently?).to eq(false)
+    end
+
     it "should default cdn_distribution_id to nil" do
       expect(AssetSync.config.cdn_distribution_id).to be_nil
     end
 
     it "should default invalidate to empty array" do
       expect(AssetSync.config.invalidate).to eq([])
+    end
+
+    it "should default asset_regexps to empty array" do
+      expect(AssetSync.config.cache_asset_regexps).to eq([])
     end
   end
 
@@ -106,6 +127,10 @@ describe AssetSync do
       expect(AssetSync.config.fog_region).to eq("eu-west-1")
     end
 
+    it "should configure path_style" do
+      expect(AssetSync.config.fog_path_style).to be_truthy
+    end
+
     it "should configure existing_remote_files" do
       expect(AssetSync.config.existing_remote_files).to eq("keep")
     end
@@ -117,6 +142,10 @@ describe AssetSync do
     it "should default manifest to false" do
       expect(AssetSync.config.manifest).to be_falsey
     end
+
+    it "should default asset_regexps to match regexps" do
+      expect(AssetSync.config.cache_asset_regexps).to eq(['cache_me.js', /cache_some\.\d{8}\.css/])
+    end
   end
 
   describe 'from yml, exporting to a mobile hybrid development directory' do
@@ -127,7 +156,7 @@ describe AssetSync do
     end
 
     it "should be disabled" do
-      expect{ AssetSync.sync }.not_to raise_error()
+      expect{ AssetSync.sync }.not_to raise_error
     end
 
     after(:each) do
@@ -141,7 +170,7 @@ describe AssetSync do
     end
 
     it "should be invalid" do
-      expect{ AssetSync.sync }.to raise_error()
+      expect{ AssetSync.sync }.to raise_error(::AssetSync::Config::Invalid)
     end
   end
 
@@ -154,7 +183,7 @@ describe AssetSync do
     end
 
     it "should do nothing, without complaining" do
-      expect{ AssetSync.sync }.not_to raise_error()
+      expect{ AssetSync.sync }.not_to raise_error
     end
   end
 
@@ -168,7 +197,7 @@ describe AssetSync do
     end
 
     it "should not raise an invalid exception" do
-      expect{ AssetSync.sync }.not_to raise_error()
+      expect{ AssetSync.sync }.not_to raise_error
     end
 
     it "should output a warning to stderr" do
@@ -187,7 +216,7 @@ describe AssetSync do
     end
 
     it "should not raise an invalid exception" do
-      expect{ AssetSync.sync }.not_to raise_error()
+      expect{ AssetSync.sync }.not_to raise_error
     end
   end
 
@@ -227,19 +256,63 @@ describe AssetSync do
     end
   end
 
-  describe 'with invalid yml' do
-
+  describe 'with cache_asset_regexps' do
     before(:each) do
-      set_rails_root('with_invalid_yml')
       AssetSync.config = AssetSync::Config.new
     end
 
-    it "config should be invalid" do
-      expect(AssetSync.config.valid?).to be_falsey
+    it "config.cache_asset_regexp should set cache_asset_regexps" do
+      AssetSync.config.cache_asset_regexp = /\.[a-f0-9]{8}/i
+      expect(AssetSync.config.cache_asset_regexps.size).to eq(1)
+      expect(AssetSync.config.cache_asset_regexps[0]).to eq(/\.[a-f0-9]{8}/i)
     end
 
-    it "should raise a config invalid error" do
-      expect{ AssetSync.sync }.to raise_error()
+    it "set cache_asset_regexps" do
+      AssetSync.config.cache_asset_regexps = ["app.abc123.js", /\.[a-f0-9]{10}/i]
+      expect(AssetSync.config.cache_asset_regexps.size).to eq(2)
+      expect(AssetSync.config.cache_asset_regexps).to eq(["app.abc123.js", /\.[a-f0-9]{10}/i])
+    end
+  end
+
+  describe 'with invalid yml' do
+    before(:each) do
+      set_rails_root('with_invalid_yml')
+    end
+
+    it "an error" do
+      expect{ AssetSync::Config.new }.to raise_error(Psych::SyntaxError)
+    end
+  end
+
+  describe 'FogPublicValue' do
+    describe "#to_bool" do
+      it "true should be converted to true" do
+        expect(AssetSync::Config::FogPublicValue.new(true).to_bool).to be_truthy
+      end
+      it "false should be converted to false" do
+        expect(AssetSync::Config::FogPublicValue.new(false).to_bool).to be_falsey
+      end
+      it "nil should be converted to false" do
+        expect(AssetSync::Config::FogPublicValue.new(nil).to_bool).to be_falsey
+      end
+      it "'default' should be converted to false" do
+        expect(AssetSync::Config::FogPublicValue.new("default").to_bool).to be_truthy
+      end
+    end
+
+    describe "#use_explicit_value?" do
+      it "true should be converted to true" do
+        expect(AssetSync::Config::FogPublicValue.new(true).use_explicit_value?).to be_truthy
+      end
+      it "false should be converted to true" do
+        expect(AssetSync::Config::FogPublicValue.new(false).use_explicit_value?).to be_truthy
+      end
+      it "nil should be converted to true" do
+        expect(AssetSync::Config::FogPublicValue.new(nil).use_explicit_value?).to be_truthy
+      end
+      it "'default' should be converted to false" do
+        expect(AssetSync::Config::FogPublicValue.new("default").use_explicit_value?).to be_falsey
+      end
     end
   end
 end

@@ -1,5 +1,8 @@
-[![Build Status](https://secure.travis-ci.org/rumblelabs/asset_sync.png)](http://travis-ci.org/rumblelabs/asset_sync)
-[![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/rumblelabs/asset_sync)
+
+[![Gem Version](https://img.shields.io/gem/v/asset_sync.svg?style=flat-square)](http://badge.fury.io/rb/asset_sync)
+[![Build Status](https://img.shields.io/travis/AssetSync/asset_sync.svg?style=flat-square)](http://travis-ci.org/AssetSync/asset_sync)
+[![Coverage Status](http://img.shields.io/coveralls/AssetSync/asset_sync.svg?style=flat-square)](https://coveralls.io/r/AssetSync/asset_sync)
+
 
 # Asset Sync
 
@@ -12,27 +15,29 @@ This was initially built and is intended to work on [Heroku](http://heroku.com) 
 
 ## Upgrading?
 
-If you are upgrading from a version of asset_sync **< 0.2.0** (i.e. 0.1.x). All of the references to config variables have changed to reference those used in **Fog**. Ensure to backup your `asset_sync.rb` or `asset_sync.yml` files and re-run the generator. You may also then need to update your ENV configuration variables (or you can change the ones that are referenced).
+Upgraded from 1.x? Read `UPGRADING.md`
 
 ## Installation
 
-Add the gem to your Gemfile
+Since 2.x, Asset Sync depends on gem `fog-core` instead of `fog`.  
+This is due to `fog` is including many unused storage provider gems as its dependencies.  
 
-``` ruby
-gem 'asset_sync'
-```
-
-### Optimized Fog loading
-
-Since AssetSync doesn't know which parts of Fog you intend to use, it will just load the entire library.
-If you prefer to load fewer classes into your application, which will reduce load time and memory use,
-you need to load those parts of Fog yourself *before* loading AssetSync:
+Asset Sync has no idea about what provider will be used,  
+so you are responsible for bundling the right gem for the provider to be used.  
 
 In your Gemfile:
 ```ruby
-gem "fog", "~>1.20", require: "fog/aws/storage"
 gem "asset_sync"
+gem "fog-aws"
 ```
+
+Or, to use Azure Blob storage, configure as this.
+
+``` ruby
+gem "asset_sync"
+gem "fog-azure-rm"
+```
+
 
 ### Extended Installation (Faster sync with turbosprockets)
 
@@ -65,6 +70,12 @@ Or, to use Google Storage Cloud, configure as this.
   config.action_controller.asset_host = "//#{ENV['FOG_DIRECTORY']}.storage.googleapis.com"
 ```
 
+Or, to use Azure Blob storage, configure as this.
+
+``` ruby
+  #config/environments/production.rb
+  config.action_controller.asset_host = "//#{ENV['AZURE_STORAGE_ACCOUNT_NAME']}.blob.core.windows.net/#{ENV['FOG_DIRECTORY']}"
+```
 
 
 On **HTTPS**: the exclusion of any protocol in the asset host declaration above will allow browsers to choose the transport mechanism on the fly. So if your application is available under both HTTP and HTTPS the assets will be served to match.
@@ -74,19 +85,28 @@ On **HTTPS**: the exclusion of any protocol in the asset host declaration above 
 ``` ruby
   config.action_controller.asset_host = "//s3.amazonaws.com/#{ENV['FOG_DIRECTORY']}"
 ```
-Or
+
+Or, to use Google Storage Cloud, configure as this.
 
 ``` ruby
   config.action_controller.asset_host = "//storage.googleapis.com/#{ENV['FOG_DIRECTORY']}"
 ```
+
+Or, to use Azure Blob storage, configure as this.
+
+``` ruby
+  #config/environments/production.rb
+  config.action_controller.asset_host = "//#{ENV['AZURE_STORAGE_ACCOUNT_NAME']}.blob.core.windows.net/#{ENV['FOG_DIRECTORY']}"
+```
+
 On **non default S3 bucket region**: If your bucket is set to a region that is not the default US Standard (us-east-1) you must use the first style of url ``//#{ENV['FOG_DIRECTORY']}.s3.amazonaws.com`` or amazon will return a 301 permanently moved when assets are requested. Note the caveat above about bucket names and periods.
 
 If you wish to have your assets sync to a sub-folder of your bucket instead of into the root add the following to your ``production.rb`` file
 
-```ruby
+``` ruby
   # store assets in a 'folder' instead of bucket root
   config.assets.prefix = "/production/assets"
-````
+```
 
 Also, ensure the following are defined (in production.rb or application.rb)
 
@@ -101,7 +121,7 @@ Additionally, if you depend on any configuration that is setup in your `initiali
 
 **AssetSync** supports the following methods of configuration.
 
-* [Built-in Initializer](https://github.com/rumblelabs/asset_sync/blob/master/lib/asset_sync/engine.rb) (configured through environment variables)
+* [Built-in Initializer](https://github.com/AssetSync/asset_sync/blob/master/lib/asset_sync/engine.rb) (configured through environment variables)
 * Rails Initializer
 * A YAML config file
 
@@ -121,7 +141,7 @@ The Built-in Initializer will configure **AssetSync** based on the contents of y
 
 Add your configuration details to **heroku**
 
-``` bash
+​``` bash
 heroku config:add AWS_ACCESS_KEY_ID=xxxx
 heroku config:add AWS_SECRET_ACCESS_KEY=xxxx
 heroku config:add FOG_DIRECTORY=xxxx
@@ -150,7 +170,17 @@ heroku config:add FOG_DIRECTORY=xxxx
 heroku config:add FOG_PROVIDER=Rackspace
 ```
 
-Google Storage Cloud configuration is supported as well
+Google Storage Cloud configuration is supported as well. The preferred option is using the [GCS JSON API](https://github.com/fog/fog-google#storage) which requires that you create an appropriate service account, generate the signatures and make them accessible to asset sync at the prescribed location 
+
+```bash
+heroku config:add FOG_PROVIDER=Google
+heroku config:add GOOGLE_PROJECT=xxxx
+heroku config:add GOOGLE_JSON_KEY_LOCATION=xxxx
+heroku config:add FOG_DIRECTORY=xxxx
+```
+
+If using the S3 API the following config is required
+
 ``` bash
 heroku config:add FOG_PROVIDER=Google
 heroku config:add GOOGLE_STORAGE_ACCESS_KEY_ID=xxxx
@@ -168,6 +198,7 @@ Run the included Rake task to generate a starting point.
 
     rails g asset_sync:install --provider=Rackspace
     rails g asset_sync:install --provider=AWS
+    rails g asset_sync:install --provider=AzureRM
 
 The generator will create a Rails initializer at `config/initializers/asset_sync.rb`.
 
@@ -184,6 +215,23 @@ AssetSync.configure do |config|
   # Increase upload performance by configuring your region
   # config.fog_region = 'eu-west-1'
   #
+  # Set `public` option when uploading file depending on value,
+  # Setting to "default" makes asset sync skip setting the option
+  # Possible values: true, false, "default" (default: true)
+  # config.fog_public = true
+  #
+  # Change AWS signature version. Default is 4
+  # config.aws_signature_version = 4
+  #
+  # Change host option in fog (only if you need to)
+  # config.fog_host = 's3.amazonaws.com'
+  #
+  # Change port option in fog (only if you need to)
+  # config.fog_port = "9000"
+  #
+  # Use http instead of https.
+  # config.fog_scheme = 'http'
+  #
   # Automatically replace files with their equivalent gzip compressed version
   # config.gzip_compression = true
   #
@@ -191,8 +239,21 @@ AssetSync.configure do |config|
   # upload instead of searching the assets directory.
   # config.manifest = true
   #
+  # Upload the manifest file also.
+  # config.include_manifest = false
+  #
   # Fail silently.  Useful for environments such as Heroku
   # config.fail_silently = true
+  #
+  # Log silently. Default is `true`. But you can set it to false if more logging message are preferred.
+  # Logging messages are sent to `STDOUT` when `log_silently` is falsy
+  # config.log_silently = true
+  #
+  # Allow custom assets to be cacheable. Note: The base filename will be matched
+  # If you have an asset with name `app.0b1a4cd3.js`, only `app.0b1a4cd3` will need to be matched
+  # only one of `cache_asset_regexp` or `cache_asset_regexps` is allowed.
+  # config.cache_asset_regexp = /\.[a-f0-9]{8}$/i
+  # config.cache_asset_regexps = [ /\.[a-f0-9]{8}$/i, /\.[a-f0-9]{20}$/i ]
 end
 ```
 
@@ -202,6 +263,7 @@ Run the included Rake task to generate a starting point.
 
     rails g asset_sync:install --use-yml --provider=Rackspace
     rails g asset_sync:install --use-yml --provider=AWS
+    rails g asset_sync:install --use-yml --provider=AzureRM
 
 The generator will create a YAML file at `config/asset_sync.yml`.
 
@@ -211,8 +273,22 @@ defaults: &defaults
   fog_directory: "rails-app-assets"
   aws_access_key_id: "<%= ENV['AWS_ACCESS_KEY_ID'] %>"
   aws_secret_access_key: "<%= ENV['AWS_SECRET_ACCESS_KEY'] %>"
+
+  # To use AWS reduced redundancy storage.
+  # aws_reduced_redundancy: true
+  #
   # You may need to specify what region your storage bucket is in
   # fog_region: "eu-west-1"
+  #
+  # Change AWS signature version. Default is 4
+  # aws_signature_version: 4
+  #
+  # Change host option in fog (only if you need to)
+  # fog_host: "s3.amazonaws.com"
+  #
+  # Use http instead of https. Default should be "https" (at least for fog-aws)
+  # fog_scheme: "http"
+
   existing_remote_files: keep # Existing pre-compiled assets on S3 will be kept
   # To delete existing remote files.
   # existing_remote_files: delete
@@ -225,9 +301,12 @@ defaults: &defaults
   # Always upload. Useful if you want to overwrite specific remote assets regardless of their existence
   #  eg: Static files in public often reference non-fingerprinted application.css
   #  note: You will still need to expire them from the CDN's edge cache locations
-  # always_upload: ['application.js', 'application.css']
+  # always_upload: ['application.js', 'application.css', !ruby/regexp '/application-/\d{32}\.css/']
   # Ignored files. Useful if there are some files that are created dynamically on the server and you don't want to upload on deploy.
   # ignored_files: ['ignore_me.js', !ruby/regexp '/ignore_some/\d{32}\.css/']
+  # Allow custom assets to be cacheable. Note: The base filename will be matched
+  # If you have an asset with name "app.0b1a4cd3.js", only "app.0b1a4cd3" will need to be matched
+  # cache_asset_regexps: ['cache_me.js', !ruby/regexp '/cache_some\.\d{8}\.css/']
 
 development:
   <<: *defaults
@@ -241,7 +320,7 @@ production:
 
 ### Available Configuration Options
 
-All AssetSync configuration can be modified directly using environment variables with the **Built-in initializer**. e.g.
+Most AssetSync configuration can be modified directly using environment variables with the **Built-in initializer**. e.g.
 
 ```ruby
 AssetSync.config.fog_provider == ENV['FOG_PROVIDER']
@@ -258,17 +337,55 @@ AssetSync.config.gzip_compression == ENV['ASSET_SYNC_GZIP_COMPRESSION']
 * **existing_remote_files**: (`'keep', 'delete', 'ignore'`) what to do with previously precompiled files. **default:** `'keep'`
 * **gzip\_compression**: (`true, false`) when enabled, will automatically replace files that have a gzip compressed equivalent with the compressed version. **default:** `'false'`
 * **manifest**: (`true, false`) when enabled, will use the `manifest.yml` generated by Rails to get the list of local files to upload. **experimental**. **default:** `'false'`
+* **include_manifest**: (`true, false`) when enabled, will upload the `manifest.yml` generated by Rails. **default:** `'false'`
 * **enabled**: (`true, false`) when false, will disable asset sync. **default:** `'true'` (enabled)
 * **ignored\_files**: an array of files to ignore e.g. `['ignore_me.js', %r(ignore_some/\d{32}\.css)]` Useful if there are some files that are created dynamically on the server and you don't want to upload on deploy **default**: `[]`
+* **cache\_asset\_regexps**: an array of files to add cache headers e.g. `['cache_me.js', %r(cache_some\.\d{8}\.css)]` Useful if there are some files that are added to sprockets assets list and need to be set as 'Cacheable' on uploaded server.  Only rails compiled regexp is matched internally **default**: `[]`
 
+##### Config Method `add_local_file_paths`
+Adding local files by providing a block:
+```ruby
+AssetSync.configure do |config|
+  # The block should return an array of file paths
+  config.add_local_file_paths do
+    # Any code that returns paths of local asset files to be uploaded
+    # Like Webpacker
+    public_root = Rails.root.join("public")
+    Dir.chdir(public_root) do
+      packs_dir = Webpacker.config.public_output_path.relative_path_from(public_root)
+      Dir[File.join(packs_dir, '/**/**')]
+    end
+  end
+end
+```
+The blocks are run when local files are being scanned and uploaded
+
+##### Config Method `file_ext_to_mime_type_overrides`
+It's reported that `mime-types` 3.x returns `application/ecmascript` instead of `application/javascript`  
+Such change of mime type might cause some CDN to disable asset compression  
+So this gem has defined a default override for file ext `js` to be mapped to `application/javascript` by default
+
+To customize the overrides:
+```ruby
+AssetSync.configure do |config|
+  # Clear the default overrides
+  config.file_ext_to_mime_type_overrides.clear
+  
+  # Add/Edit overrides
+  # Will call `#to_s` for inputs
+  config.file_ext_to_mime_type_overrides.add(:js, :"application/x-javascript")
+end
+```
+The blocks are run when local files are being scanned and uploaded
 
 #### Fog (Required)
-* **fog\_provider**: your storage provider *AWS* (S3) or *Rackspace* (Cloud Files) or *Google* (Google Storage)
+* **fog\_provider**: your storage provider *AWS* (S3) or *Rackspace* (Cloud Files) or *Google* (Google Storage) or *AzureRM* (Azure Blob)
 * **fog\_directory**: your bucket name
 
 #### Fog (Optional)
 
-* **fog\_region**: the region your storage bucket is in e.g. *eu-west-1*
+* **fog\_region**: the region your storage bucket is in e.g. *eu-west-1* (AWS),  *ord* (Rackspace), *japanwest* (Azure Blob)
+* **fog\_path\_style**: To use buckets with dot in names, check https://github.com/fog/fog/issues/2381#issuecomment-28088524
 
 #### AWS
 
@@ -281,8 +398,20 @@ AssetSync.config.gzip_compression == ENV['ASSET_SYNC_GZIP_COMPRESSION']
 * **rackspace\_api\_key**: your Rackspace API Key.
 
 #### Google Storage
+
+When using the JSON API
+
+- **google\_project**: your Google Cloud Project name where the Google Cloud Storage bucket resides
+- **google\_json\_key\_location**: path to the location of the service account key.  The service account key must be a JSON type key
+
+When using the S3 API
+
 * **google\_storage\_access\_key\_id**: your Google Storage access key
 * **google\_storage\_secret\_access\_key**: your Google Storage access secret
+
+#### Azure Blob
+* **azure\_storage\_account\_name**: your Azure Blob access key
+* **azure\_storage\_access\_key**: your Azure Blob access secret
 
 #### Rackspace (Optional)
 
@@ -315,33 +444,40 @@ production:
 
 ### Amazon (AWS) IAM Users
 
-Amazon has switched to the more secure IAM User security policy model. When generating a user & policy for asset_sync you will need to ensure the policy has the following permissions.
-You __must__ give the user permission to **s3:ListAllMyBuckets** as well as give permission to both the bucket, as well as the bucket's contents (/*). If not given all these permissions you'll see the error ```Expected(200) <=> Actual(403 Forbidden) ```
+Amazon has switched to the more secure IAM User security policy model. When generating a user & policy for asset_sync you **must** ensure the policy has the following permissions, or you'll see the error:
 
-IAM User Policy Example (replace "bucket_name" with your bucket):
+```
+Expected(200) <=> Actual(403 Forbidden)
+```
+
+IAM User Policy Example with minimum require permissions (replace `bucket_name` with your bucket):
+
 ``` json
 {
   "Statement": [
     {
-      "Action": [
-        "s3:ListAllMyBuckets"
-      ],
-      "Effect": "Allow",
-      "Resource": "arn:aws:s3:::*"
-    },
-    {
-      "Action": "s3:*",
+      "Action": "s3:ListBucket",
       "Effect": "Allow",
       "Resource": "arn:aws:s3:::bucket_name"
     },
     {
-      "Action": "s3:*",
+      "Action": "s3:PutObject*",
       "Effect": "Allow",
       "Resource": "arn:aws:s3:::bucket_name/*"
     }
   ]
 }
 ```
+
+If you want to use IAM roles you must set ```config.aws_iam_roles = true``` in your initializers.
+
+```
+AssetSync.configure do |config|
+  # ...
+  config.aws_iam_roles = true
+end
+```
+
 
 ## Automatic gzip compression
 
@@ -429,13 +565,52 @@ namespace :assets do
 end
 ```
 
+## Webpacker (> 2.0) support
+
+1. Add webpacker files and disable `run_on_precompile`:
+```ruby
+AssetSync.configure do |config|
+  # Disable automatic run on precompile in order to attach to webpacker rake task
+  config.run_on_precompile = false
+  # The block should return an array of file paths
+  config.add_local_file_paths do
+    # Support webpacker assets
+    public_root = Rails.root.join("public")
+    Dir.chdir(public_root) do
+      packs_dir = Webpacker.config.public_output_path.relative_path_from(public_root)
+      Dir[File.join(packs_dir, '/**/**')]
+    end
+  end
+end
+```
+
+2. Add a `asset_sync.rake` in your `lib/tasks` directory that enhances the correct task, otherwise asset_sync runs before `webpacker:compile` does:
+```
+if defined?(AssetSync)
+  Rake::Task['webpacker:compile'].enhance do
+    Rake::Task["assets:sync"].invoke
+  end
+end
+```
+
+### Caveat
+By adding local files outside the normal Rails `assets` directory, the uploading part works, however checking that the asset was previously uploaded is not working because asset_sync is only fetching the files in the `assets` directory on the remote bucket. This will mean additional time used to upload the same assets again on every precompilation.
+
 ## Running the specs
 
 Make sure you have a .env file with these details:-
 
+    # for AWS provider
     AWS_ACCESS_KEY_ID=<yourkeyid>
     AWS_SECRET_ACCESS_KEY=<yoursecretkey>
     FOG_DIRECTORY=<yourbucket>
+    FOG_REGION=<youbucketregion>
+    
+    # for AzureRM provider
+    AZURE_STORAGE_ACCOUNT_NAME=<youraccountname>
+    AZURE_STORAGE_ACCESS_KEY=<youraccesskey>
+    FOG_DIRECTORY=<yourcontainer>
+    FOG_REGION=<yourcontainerregion>
 
 Make sure the bucket has read/write permissions.  Then to run the tests:-
 

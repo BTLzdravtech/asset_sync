@@ -1,4 +1,189 @@
-# RELEASE HISTORY
+# Change Log
+All notable changes to this project will be documented in this file.
+This project adheres to [Semantic Versioning](http://semver.org/).
+
+
+## [Unreleased]
+
+### Added
+
+- Nothing
+
+### Changed
+
+- Nothing
+
+### Fixed
+
+- Nothing
+
+
+## [2.8.1] - 2019-07-25
+
+### Changed
+
+- Removed `rubyforge_project` from gemspec
+  (https://github.com/AssetSync/asset_sync/pull/386)
+
+### Fixed
+
+- Fixed when `fog_public` set to `false`, file were still set to be public
+  (https://github.com/AssetSync/asset_sync/pull/387)
+
+
+## [2.8.0] - 2019-06-17
+
+### Added
+
+- Add option `fog_port`
+  (https://github.com/AssetSync/asset_sync/pull/385)
+
+
+## [2.7.0] - 2019-03-15
+
+### Added
+
+- Adds JSON API support when using Google Storage
+  (https://github.com/AssetSync/asset_sync/pull/381)
+
+### Changed
+
+- Update `AssetSync::MultiMime.lookup` to always return strings (kind of internal change)
+  (https://github.com/AssetSync/asset_sync/pull/380)
+
+
+## [2.6.0] - 2018-12-07
+
+### Added
+
+- Add option `fog_public`
+  (https://github.com/AssetSync/asset_sync/pull/377)
+
+
+## [2.5.0] - 2018-10-25
+
+### Added
+
+- Add ruby only option `file_ext_to_mime_type_overrides`
+  (https://github.com/AssetSync/asset_sync/pull/374)
+
+### Changed
+
+- Start testing against rails 5.2, stop testing against rails 4.1
+
+### Fixed
+
+- Only enhance rake task assets:precompile if it's defined
+  (https://github.com/AssetSync/asset_sync/commit/e1eb1a16b06fd39def1759428a2d94733915bbff)
+- Avoid ruby warning due to "method redefined"
+  (https://github.com/AssetSync/asset_sync/pull/371)
+
+
+## [2.4.0] - 2017-12-20
+
+### Added
+
+- Add support for Azure Blob storage
+  (https://github.com/AssetSync/asset_sync/pull/363)
+- Add option: `include_manifest`
+  (https://github.com/AssetSync/asset_sync/pull/365)
+
+### Changed
+
+- Add public API method `get_asset_files_from_manifest` split from `get_local_files` for another gem
+  (https://github.com/AssetSync/asset_sync/pull/366)
+
+### Fixed
+
+- Nothing
+
+
+## [2.3.0] - 2017-12-05
+
+### Added
+
+- Add options: `aws_signature_version`, `fog_host`, `fog_scheme`
+  (https://github.com/AssetSync/asset_sync/pull/362)
+
+### Changed
+
+- Change initializer template to only run when AssetSync const defined
+
+
+## [2.2.0] - 2017-07-12
+
+### Added
+
+- Add method `add_local_file_paths` to config for uploading additional files, like webpacker
+  (https://github.com/AssetSync/asset_sync/pull/347)
+
+### Changed
+
+- Nothing
+
+### Fixed
+
+- Fix too many files open when uploading local files
+  (https://github.com/AssetSync/asset_sync/pull/351)
+
+
+## [2.1.0] - 2017-05-19
+
+### Added
+
+- Allow customization of regexp of files on target bucket to be marked as 'Cacheable'  
+  so that browsers when serving the content would cache them.  
+  The value can be set by `cache_asset_regexps`  
+
+### Changed
+
+- Only support mime-type >= 2.99,  
+  which is released at the end of 2015  
+- Only support activemodel >= 4.1,  
+  which is released in 2014  
+
+
+## [2.0.0] - 2016-12-21
+
+### Changed
+
+- [BREAKING] require “fog-core” instead of “fog” as runtime requirement
+
+
+## [1.3.0] - 2016-11-30
+
+### Changed
+
+- Add regex support to always_upload (https://github.com/AssetSync/asset_sync/pull/333)
+- Stop failing sliently when YAML file does not contain key for rails environment (https://github.com/AssetSync/asset_sync/pull/270)
+- Stop failing sliently when YAML file cannot be parsed due to syntax error
+
+
+## [1.2.1] - 2016-08-19
+
+### Fixed
+
+- Respect value of option `log_silently` even when `ENV['RAILS_GROUPS'] == 'assets'`
+
+
+## [1.2.0] - 2016-08-17
+
+### Added
+
+- Support for `fog_path_style` config option (AWS only) (https://github.com/AssetSync/asset_sync/pull/302)
+
+### Changed
+
+- Set Expires and Cache-Control headers for .gz files (https://github.com/AssetSync/asset_sync/pull/329)
+
+### Fixed
+
+- Add missing runtime dependency declaration for `mime-types` to gemspec (https://github.com/AssetSync/asset_sync/pull/328)
+- Update outdated error message for unknown AssetSync provider (https://github.com/AssetSync/asset_sync/pull/298)
+- Allow hash digest in file name with over 32 chars (for sprockets 3+) (https://github.com/AssetSync/asset_sync/pull/315)
+- Fix `config.log_silently?` (https://github.com/AssetSync/asset_sync/pull/324)
+- Stop using deprecated Ruby API (https://github.com/AssetSync/asset_sync/pull/276)
+
 
 ## v1.1.0 / 2014-08-13
 
@@ -736,3 +921,18 @@ Changes:
     * Improve documentation on ignored_files config option
     * Merge branch 'sinatra'
 
+
+[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/AssetSync/asset_sync/compare/v2.8.0...v2.8.1
+[2.8.0]: https://github.com/AssetSync/asset_sync/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/AssetSync/asset_sync/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/AssetSync/asset_sync/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/AssetSync/asset_sync/compare/v2.4.0...v2.5.0
+[2.4.0]: https://github.com/AssetSync/asset_sync/compare/v2.3.0...v2.4.0
+[2.3.0]: https://github.com/AssetSync/asset_sync/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/AssetSync/asset_sync/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/AssetSync/asset_sync/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/AssetSync/asset_sync/compare/v1.3.0...v2.0.0
+[1.3.0]: https://github.com/AssetSync/asset_sync/compare/v1.2.1...v1.3.0
+[1.2.1]: https://github.com/AssetSync/asset_sync/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/AssetSync/asset_sync/compare/v1.1.0...v1.2.0

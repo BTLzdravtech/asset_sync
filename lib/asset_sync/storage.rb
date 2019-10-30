@@ -1,6 +1,11 @@
+require "fog/core"
+
+require "asset_sync/multi_mime"
+
 module AssetSync
   class Storage
     REGEXP_FINGERPRINTED_FILES = /^(.*)\/([^-]+)-[^\.]+\.([^\.]+)$/
+    REGEXP_ASSETS_TO_CACHE_CONTROL = /-[0-9a-fA-F]{32,}$/
 
     class BucketNotFound < StandardError;
     end
@@ -33,30 +38,28 @@ module AssetSync
     end
 
     def ignored_files
-      files = []
-      Array(self.config.ignored_files).each do |ignore|
-        case ignore
-          when Regexp
-            files += self.local_files.select do |file|
-              file =~ ignore
-            end
-          when String
-            files += self.local_files.select do |file|
-              file.split('/').last == ignore
-            end
-          else
-            log "Error: please define ignored_files as string or regular expression. #{ignore} (#{ignore.class}) ignored."
-        end
+      expand_file_names(self.config.ignored_files)
+    end
+
+    def get_manifest_path
+      return [] unless self.config.include_manifest
+
+      if ActionView::Base.respond_to?(:assets_manifest)
+        manifest = Sprockets::Manifest.new(ActionView::Base.assets_manifest.environment, ActionView::Base.assets_manifest.dir)
+        manifest_path = manifest.filename
+      else
+        manifest_path = self.config.manifest_path
       end
-      files.uniq
+      [manifest_path.sub(/^#{path}\//, "")] # full path to relative path
     end
 
     def local_files
-      @local_files ||= get_local_files.uniq
+      @local_files ||=
+        (get_local_files + config.additional_local_file_paths).uniq
     end
 
     def always_upload_files
-      self.config.always_upload.map { |f| File.join(self.config.assets_prefix, f) }
+      expand_file_names(self.config.always_upload) + get_manifest_path
     end
 
     def files_with_custom_headers
@@ -67,7 +70,10 @@ module AssetSync
       self.config.invalidate.map { |filename| File.join("/", self.config.assets_prefix, filename) }
     end
 
-    def get_local_files
+    # @api
+    #   To get a list of asset files indicated in a manifest file.
+    #   It makes sense if a user sets `config.manifest` is true.
+    def get_asset_files_from_manifest
       if self.config.manifest
         if ActionView::Base.respond_to?(:assets_manifest)
           log "Using: Rails 4.0 manifest access"
@@ -76,7 +82,7 @@ module AssetSync
         elsif File.exist?(self.config.manifest_path)
           log "Using: Manifest #{self.config.manifest_path}"
           yml = YAML.load(IO.read(self.config.manifest_path))
-   
+
           return yml.map do |original, compiled|
             # Upload font originals and compiled
             if original =~ /^.+(eot|svg|ttf|woff)$/
@@ -89,6 +95,13 @@ module AssetSync
           log "Warning: Manifest could not be found"
         end
       end
+    end
+
+    def get_local_files
+      if from_manifest = get_asset_files_from_manifest
+        return from_manifest
+      end
+
       log "Using: Directory Search of #{path}/#{self.config.assets_prefix}"
       Dir.chdir(path) do
         to_load = self.config.assets_prefix.present? ? "#{self.config.assets_prefix}/**/**" : '**/**'
@@ -130,16 +143,27 @@ module AssetSync
       one_year = 31557600
       ext = File.extname(f)[1..-1]
       mime = MultiMime.lookup(ext)
+      gzip_file_handle = nil
+      file_handle = File.open("#{path}/#{f}")
       file = {
         :key => f,
-        :body => File.open("#{path}/#{f}"),
-        :public => true,
+        :body => file_handle,
         :content_type => mime
       }
 
+      # region fog_public
+
+      if config.fog_public.use_explicit_value?
+        file[:public] = config.fog_public.to_bool
+      end
+
+      # endregion fog_public
+
       uncompressed_filename = f.sub(/\.gz\z/, '')
       basename = File.basename(uncompressed_filename, File.extname(uncompressed_filename))
-      if /-[0-9a-fA-F]{32}$/.match(basename)
+
+      assets_to_cache_control = Regexp.union([REGEXP_ASSETS_TO_CACHE_CONTROL] | config.cache_asset_regexps).source
+      if basename.match(Regexp.new(assets_to_cache_control)).present?
         file.merge!({
           :cache_control => "public, max-age=#{one_year}",
           :expires => CGI.rfc1123_date(Time.now + one_year)
@@ -175,9 +199,10 @@ module AssetSync
 
         if gzipped_size < original_size
           percentage = ((gzipped_size.to_f/original_size.to_f)*100).round(2)
+          gzip_file_handle = File.open(gzipped)
           file.merge!({
                         :key => f,
-                        :body => File.open(gzipped),
+                        :body => gzip_file_handle,
                         :content_encoding => 'gzip'
                       })
           log "Uploading: #{gzipped} in place of #{f} saving #{percentage}%"
@@ -206,7 +231,9 @@ module AssetSync
         })
       end
 
-      file = bucket.files.create( file ) unless ignore
+      bucket.files.create( file ) unless ignore
+      file_handle.close
+      gzip_file_handle.close if gzip_file_handle
     end
 
     def upload_files
@@ -249,6 +276,25 @@ module AssetSync
         match_data = file.match(REGEXP_FINGERPRINTED_FILES)
         match_data && "#{match_data[1]}/#{match_data[2]}.#{match_data[3]}"
       end.compact
+    end
+
+    def expand_file_names(names)
+      files = []
+      Array(names).each do |name|
+        case name
+          when Regexp
+            files += self.local_files.select do |file|
+              file =~ name
+            end
+          when String
+            files += self.local_files.select do |file|
+              file.split('/').last == name
+            end
+          else
+            log "Error: please define file names as string or regular expression. #{name} (#{name.class}) ignored."
+        end
+      end
+      files.uniq
     end
 
   end

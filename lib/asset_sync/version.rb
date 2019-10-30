@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module AssetSync
-  VERSION = "1.1.0"
+  VERSION = "2.8.1".freeze
 end
