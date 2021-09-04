@@ -4,7 +4,7 @@ require "asset_sync/multi_mime"
 
 module AssetSync
   class Storage
-    REGEXP_FINGERPRINTED_FILES = /^(.*)\/([^-]+)-[^\.]+\.([^\.]+)$/
+    REGEXP_FINGERPRINTED_FILES = /\A(.*)\/(.+)-[^\.]+\.([^\.]+)\z/m
     REGEXP_ASSETS_TO_CACHE_CONTROL = /-[0-9a-fA-F]{32,}$/
 
     class BucketNotFound < StandardError;
@@ -195,7 +195,9 @@ module AssetSync
 
       # region fog_public
 
-      if config.fog_public.use_explicit_value?
+      if config.aws? && config.aws_acl
+        file[:acl] = config.aws_acl
+      elsif config.fog_public.use_explicit_value?
         file[:public] = config.fog_public.to_bool
       end
 

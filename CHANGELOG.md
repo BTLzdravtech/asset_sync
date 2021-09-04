@@ -18,6 +18,46 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Nothing
 
 
+## [2.15.0] - 2021-08-05
+
+### Added
+
+- Add support for option `aws_acl`
+  (https://github.com/AssetSync/asset_sync/pull/420)
+
+
+## [2.14.2] - 2021-05-31
+
+### Added
+
+- Add support for setting option `google_json_key_string` in YML (not new option)
+  (https://github.com/AssetSync/asset_sync/pull/419)
+
+
+## [2.14.1] - 2021-05-14
+
+### Added
+
+- Add support for setting option `log_silently` in YML (not new option)
+  (https://github.com/AssetSync/asset_sync/pull/417)
+
+
+## [2.14.0] - 2021-03-31
+
+### Added
+
+- Add support for fog option `google_json_key_string`
+  (https://github.com/AssetSync/asset_sync/pull/415)
+
+
+## [2.13.1] - 2021-03-01
+
+### Fixed
+
+- Fix "files to be uploaded list" generation for file names with dashes
+  (https://github.com/AssetSync/asset_sync/pull/414)
+
+
 ## [2.13.0] - 2020-12-14
 
 ### Added
@@ -986,7 +1026,12 @@ Changes:
     * Merge branch 'sinatra'
 
 
-[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.13.0...HEAD
+[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/AssetSync/asset_sync/compare/v2.14.2...v2.15.0
+[2.14.2]: https://github.com/AssetSync/asset_sync/compare/v2.14.1...v2.14.2
+[2.14.1]: https://github.com/AssetSync/asset_sync/compare/v2.14.0...v2.14.1
+[2.14.0]: https://github.com/AssetSync/asset_sync/compare/v2.13.1...v2.14.0
+[2.13.1]: https://github.com/AssetSync/asset_sync/compare/v2.13.0...v2.13.1
 [2.13.0]: https://github.com/AssetSync/asset_sync/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/AssetSync/asset_sync/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/AssetSync/asset_sync/compare/v2.11.0...v2.12.0

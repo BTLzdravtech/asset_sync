@@ -37,7 +37,15 @@ module AssetSync
     attr_reader   :fog_public            # e.g. true, false, "default"
 
     # Amazon AWS
-    attr_accessor :aws_access_key_id, :aws_secret_access_key, :aws_session_token, :aws_reduced_redundancy, :aws_iam_roles, :aws_signature_version
+    attr_accessor :aws_access_key_id
+    attr_accessor :aws_secret_access_key
+    attr_accessor :aws_session_token
+    attr_accessor :aws_reduced_redundancy
+    attr_accessor :aws_iam_roles
+    attr_accessor :aws_signature_version
+    attr_accessor :aws_acl
+
+    # Fog
     attr_accessor :fog_host              # e.g. 's3.amazonaws.com'
     attr_accessor :fog_port              # e.g. '9000'
     attr_accessor :fog_path_style        # e.g. true
@@ -49,6 +57,7 @@ module AssetSync
     # Google Storage
     attr_accessor :google_storage_secret_access_key, :google_storage_access_key_id  # when using S3 interop
     attr_accessor :google_json_key_location # when using service accounts
+    attr_accessor :google_json_key_string # when using service accounts
     attr_accessor :google_project # when using service accounts
 
     # Azure Blob with Fog::AzureRM
@@ -71,8 +80,12 @@ module AssetSync
     validates :rackspace_api_key,     :presence => true, :if => :rackspace?
     validates :google_storage_secret_access_key,  :presence => true, :if => :google_interop?
     validates :google_storage_access_key_id,      :presence => true, :if => :google_interop?
-    validates :google_json_key_location,          :presence => true, :if => :google_service_account?
     validates :google_project,                    :presence => true, :if => :google_service_account?
+    validate(:if => :google_service_account?) do
+      unless google_json_key_location.present? || google_json_key_string.present?
+        errors.add(:base, 'must provide either google_json_key_location or google_json_key_string if using Google service account')
+      end
+    end
     validates :concurrent_uploads,    :inclusion => { :in => [true, false] }
 
     def initialize
@@ -147,11 +160,11 @@ module AssetSync
     end
 
     def google_interop?
-      google? && google_json_key_location.nil?
+      google? && google_json_key_location.nil? && google_json_key_string.nil?
     end
 
     def google_service_account?
-      google? && google_json_key_location
+      google? && (google_json_key_location || google_json_key_string)
     end
 
     def azure_rm?
@@ -216,6 +229,7 @@ module AssetSync
       self.aws_reduced_redundancy = yml["aws_reduced_redundancy"]
       self.aws_iam_roles          = yml["aws_iam_roles"]
       self.aws_signature_version  = yml["aws_signature_version"]
+      self.aws_acl                = yml["aws_acl"]
       self.rackspace_username     = yml["rackspace_username"]
       self.rackspace_auth_url     = yml["rackspace_auth_url"] if yml.has_key?("rackspace_auth_url")
       self.rackspace_api_key      = yml["rackspace_api_key"]
@@ -223,13 +237,15 @@ module AssetSync
       self.google_project = yml["google_project"] if yml.has_key?("google_project")
       self.google_storage_secret_access_key = yml["google_storage_secret_access_key"] if yml.has_key?("google_storage_secret_access_key")
       self.google_storage_access_key_id     = yml["google_storage_access_key_id"] if yml.has_key?("google_storage_access_key_id")
+      self.google_json_key_string           = yml["google_json_key_string"] if yml.has_key?("google_json_key_string")
       self.existing_remote_files  = yml["existing_remote_files"] if yml.has_key?("existing_remote_files")
       self.gzip_compression       = yml["gzip_compression"] if yml.has_key?("gzip_compression")
       self.manifest               = yml["manifest"] if yml.has_key?("manifest")
       self.fail_silently          = yml["fail_silently"] if yml.has_key?("fail_silently")
+      self.log_silently           = yml["log_silently"] if yml.has_key?("log_silently")
       self.always_upload          = yml["always_upload"] if yml.has_key?("always_upload")
       self.ignored_files          = yml["ignored_files"] if yml.has_key?("ignored_files")
-      self.custom_headers          = yml["custom_headers"] if yml.has_key?("custom_headers")
+      self.custom_headers         = yml["custom_headers"] if yml.has_key?("custom_headers")
       self.run_on_precompile      = yml["run_on_precompile"] if yml.has_key?("run_on_precompile")
       self.invalidate             = yml["invalidate"] if yml.has_key?("invalidate")
       self.cdn_distribution_id    = yml['cdn_distribution_id'] if yml.has_key?("cdn_distribution_id")
@@ -292,6 +308,8 @@ module AssetSync
       elsif google?
         if google_json_key_location
           options.merge!({:google_json_key_location => google_json_key_location, :google_project => google_project})
+        elsif google_json_key_string
+          options.merge!({:google_json_key_string => google_json_key_string, :google_project => google_project})
         else
           options.merge!({
             :google_storage_secret_access_key => google_storage_secret_access_key,
