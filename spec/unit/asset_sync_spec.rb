@@ -94,6 +94,10 @@ describe AssetSync do
     it "should default asset_regexps to empty array" do
       expect(AssetSync.config.cache_asset_regexps).to eq([])
     end
+
+    it "should default remote_file_list_remote_path to nil" do
+      expect(AssetSync.config.remote_file_list_remote_path).to be_nil
+    end
   end
 
   describe 'from yml' do
@@ -271,6 +275,28 @@ describe AssetSync do
       AssetSync.config.cache_asset_regexps = ["app.abc123.js", /\.[a-f0-9]{10}/i]
       expect(AssetSync.config.cache_asset_regexps.size).to eq(2)
       expect(AssetSync.config.cache_asset_regexps).to eq(["app.abc123.js", /\.[a-f0-9]{10}/i])
+    end
+  end
+
+  describe 'with fog_options' do
+    before(:each) do
+      AssetSync.config = AssetSync::Config.new
+      AssetSync.configure do |config|
+        config.fog_provider = 'AWS'
+        config.fog_region = 'eu-west-1'
+        config.fog_path_style = 'true'
+        config.fog_options = { enable_signature_v4_streaming: true }
+      end
+    end
+
+    it "assigns fog_options" do
+      AssetSync.config.fog_options = { enable_signature_v4_streaming: true }
+      expect(AssetSync.config.fog_options).to include(
+        provider: 'AWS',
+        region: 'eu-west-1',
+        path_style: 'true',
+        enable_signature_v4_streaming: true,
+      )
     end
   end
 

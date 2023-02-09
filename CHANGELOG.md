@@ -18,6 +18,58 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Nothing
 
 
+## [2.18.0] - 2023-01-30
+
+### Added
+
+- Add `google_auth` configuration option
+  (https://github.com/AssetSync/asset_sync/pull/432)
+
+
+## [2.17.0] - 2023-01-13
+
+### Added
+
+- Add option `fog_options`
+  (https://github.com/AssetSync/asset_sync/pull/431)
+
+
+## [2.16.0] - 2022-08-26
+
+### Added
+
+- Add option `remote_file_list_cache_file_path`
+  (https://github.com/AssetSync/asset_sync/pull/428)
+
+
+## [2.15.3] - 2022-08-25
+
+### Fixed
+
+- Fix config `prefix` about env var & YAML support
+  (https://github.com/AssetSync/asset_sync/pull/427)
+
+
+## [2.15.2] - 2022-06-02
+
+### Fixed
+
+- Fix incorrect commented code in asset_sync.yml
+  (https://github.com/AssetSync/asset_sync/pull/426)
+
+
+## [2.15.1] - 2021-11-22
+
+### Changed
+
+- Update dev dependency `fog-azure-rm` to become `gitlab-fog-azure-rm`
+
+### Fixed
+
+- Fix YAML config file parsing with Psych v4
+  (https://github.com/AssetSync/asset_sync/pull/422)
+
+
 ## [2.15.0] - 2021-08-05
 
 ### Added
@@ -1026,7 +1078,12 @@ Changes:
     * Merge branch 'sinatra'
 
 
-[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.15.0...HEAD
+[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.17.0...HEAD
+[2.17.0]: https://github.com/AssetSync/asset_sync/compare/v2.16.0...v2.17.0
+[2.16.0]: https://github.com/AssetSync/asset_sync/compare/v2.15.3...v2.16.0
+[2.15.3]: https://github.com/AssetSync/asset_sync/compare/v2.15.2...v2.15.3
+[2.15.2]: https://github.com/AssetSync/asset_sync/compare/v2.15.1...v2.15.2
+[2.15.1]: https://github.com/AssetSync/asset_sync/compare/v2.15.0...v2.15.1
 [2.15.0]: https://github.com/AssetSync/asset_sync/compare/v2.14.2...v2.15.0
 [2.14.2]: https://github.com/AssetSync/asset_sync/compare/v2.14.1...v2.14.2
 [2.14.1]: https://github.com/AssetSync/asset_sync/compare/v2.14.0...v2.14.1

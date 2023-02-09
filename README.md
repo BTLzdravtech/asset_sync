@@ -1,6 +1,6 @@
 
 [![Gem Version](https://img.shields.io/gem/v/asset_sync.svg?style=flat-square)](http://badge.fury.io/rb/asset_sync)
-[![Build Status](https://img.shields.io/travis/AssetSync/asset_sync.svg?style=flat-square)](http://travis-ci.org/AssetSync/asset_sync)
+[![GitHub Build Status](https://img.shields.io/github/actions/workflow/status/AssetSync/asset_sync/tests.yaml?branch=master&style=flat-square)](https://github.com/AssetSync/asset_sync/actions/workflows/tests.yaml)
 [![Coverage Status](http://img.shields.io/coveralls/AssetSync/asset_sync.svg?style=flat-square)](https://coveralls.io/r/AssetSync/asset_sync)
 
 
@@ -35,7 +35,10 @@ Or, to use Azure Blob storage, configure as this.
 
 ``` ruby
 gem "asset_sync"
-gem "fog-azure-rm"
+gem "gitlab-fog-azure-rm"
+
+# This gem seems unmaintianed
+# gem "fog-azure-rm"
 ```
 
 To use Backblaze B2, insert these.
@@ -241,8 +244,8 @@ AssetSync.configure do |config|
   #
   # Change canned ACL of uploaded object. Default is unset. Will override fog_public if set.
   # Choose from: private | public-read | public-read-write | aws-exec-read |
-  #              authenticated-read | bucket-owner-read | bucket-owner-full-control 
-  # config.aws_acl = nil 
+  #              authenticated-read | bucket-owner-read | bucket-owner-full-control
+  # config.aws_acl = nil
   #
   # Change host option in fog (only if you need to)
   # config.fog_host = 's3.amazonaws.com'
@@ -252,6 +255,10 @@ AssetSync.configure do |config|
   #
   # Use http instead of https.
   # config.fog_scheme = 'http'
+  #
+  # Extra fog options.
+  # Overrides any existing value (even those set by AssetSync)
+  # config.fog_options = {}
   #
   # Automatically replace files with their equivalent gzip compressed version
   # config.gzip_compression = true
@@ -271,6 +278,9 @@ AssetSync.configure do |config|
   #
   # Path to cache file to skip scanning remote
   # config.remote_file_list_cache_file_path = './.asset_sync_remote_file_list_cache.json'
+  #
+  # Path on remote storage to persist remote file list file
+  # config.remote_file_list_remote_path = '/remote/asset_sync_remote_file.json'
   #
   # Fail silently.  Useful for environments such as Heroku
   # config.fail_silently = true
@@ -316,7 +326,7 @@ defaults: &defaults
   #
   # Change canned ACL of uploaded object. Default is unset. Will override fog_public if set.
   # Choose from: private | public-read | public-read-write | aws-exec-read |
-  #              authenticated-read | bucket-owner-read | bucket-owner-full-control 
+  #              authenticated-read | bucket-owner-read | bucket-owner-full-control
   # aws_acl: null
   #
   # Change host option in fog (only if you need to)
@@ -340,6 +350,10 @@ defaults: &defaults
   # always_upload: ['application.js', 'application.css', !ruby/regexp '/application-/\d{32}\.css/']
   # Ignored files. Useful if there are some files that are created dynamically on the server and you don't want to upload on deploy.
   # ignored_files: ['ignore_me.js', !ruby/regexp '/ignore_some/\d{32}\.css/']
+  # Public path. To change the public directory.
+  # public_path: 'public'
+  # Prefix. To change the directory to sync relative to public_path.
+  # prefix: 'assets'
   # Allow custom assets to be cacheable. Note: The base filename will be matched
   # If you have an asset with name "app.0b1a4cd3.js", only "app.0b1a4cd3" will need to be matched
   # cache_asset_regexps: ['cache_me.js', !ruby/regexp '/cache_some\.\d{8}\.css/']
@@ -377,6 +391,7 @@ AssetSync.config.gzip_compression == ENV['ASSET_SYNC_GZIP_COMPRESSION']
 * **concurrent_uploads**: (`true, false`) when enabled, will upload the files in different Threads, this greatly improves the upload speed. **default:** `'false'`
 * **concurrent_uploads_max_threads**: when concurrent_uploads is enabled, this determines the number of threads that will be created. **default:** `10`
 * **remote_file_list_cache_file_path**: if present, use this path to cache remote file list to skip scanning remote **default:** `nil`
+* **remote_file_list_remote_path**: if present, use this path to download remote file list file to cache file list in local to skip scanning remote. useful in container environment where you cannot maintain the local file, remote_file_list_cache_file_path also needed to make use of this option **default:** `nil`
 * **enabled**: (`true, false`) when false, will disable asset sync. **default:** `'true'` (enabled)
 * **ignored\_files**: an array of files to ignore e.g. `['ignore_me.js', %r(ignore_some/\d{32}\.css)]` Useful if there are some files that are created dynamically on the server and you don't want to upload on deploy **default**: `[]`
 * **cache\_asset\_regexps**: an array of files to add cache headers e.g. `['cache_me.js', %r(cache_some\.\d{8}\.css)]` Useful if there are some files that are added to sprockets assets list and need to be set as 'Cacheable' on uploaded server.  Only rails compiled regexp is matched internally **default**: `[]`
@@ -425,6 +440,7 @@ The blocks are run when local files are being scanned and uploaded
 
 * **fog\_region**: the region your storage bucket is in e.g. *eu-west-1* (AWS),  *ord* (Rackspace), *japanwest* (Azure Blob)
 * **fog\_path\_style**: To use buckets with dot in names, check https://github.com/fog/fog/issues/2381#issuecomment-28088524
+* **fog\_options**: For extra fog options. Overrides any existing value (even those set by AssetSync)
 
 #### AWS
 

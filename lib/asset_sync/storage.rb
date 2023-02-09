@@ -47,6 +47,10 @@ module AssetSync
       self.config.remote_file_list_cache_file_path
     end
 
+    def remote_file_list_remote_path
+      self.config.remote_file_list_remote_path
+    end
+
     def ignored_files
       expand_file_names(self.config.ignored_files)
     end
@@ -72,6 +76,16 @@ module AssetSync
       return [] if ignore_existing_remote_files?
       return @remote_files if @remote_files
 
+      if remote_file_list_remote_path && remote_file_list_cache_file_path
+        log "Downloading file list file from remote"
+        remote_cache_file = bucket.files.get(remote_file_list_remote_path)
+        if remote_cache_file
+          File.open(remote_file_list_cache_file_path, 'w') do |local_file|
+            local_file.write(remote_cache_file.body)
+          end
+        end
+      end
+
       if remote_file_list_cache_file_path && File.file?(remote_file_list_cache_file_path)
         begin
           content = File.read(remote_file_list_cache_file_path)
@@ -92,6 +106,18 @@ module AssetSync
         uploaded = local_files_to_upload + remote_files
         file.write(uploaded.to_json)
       end
+    end
+
+    def update_remote_file_list_in_remote
+      return if ignore_existing_remote_files?
+      return unless remote_file_list_remote_path
+      return unless remote_file_list_cache_file_path
+      log "Updating file list file in remote"
+      remote_file = bucket.files.new({
+        :key    => remote_file_list_remote_path,
+        :body   => File.open(remote_file_list_cache_file_path)
+      })
+      remote_file.save
     end
 
     def always_upload_files
@@ -117,7 +143,7 @@ module AssetSync
           return manifest.assets.values.map { |f| File.join(self.config.assets_prefix, f) }
         elsif File.exist?(self.config.manifest_path)
           log "Using: Manifest #{self.config.manifest_path}"
-          yml = YAML.load(IO.read(self.config.manifest_path))
+          yml = AssetSync.load_yaml(IO.read(self.config.manifest_path))
 
           return yml.map do |original, compiled|
             # Upload font originals and compiled
@@ -317,6 +343,7 @@ module AssetSync
       end
 
       update_remote_file_list_cache(local_files_to_upload)
+      update_remote_file_list_in_remote
     end
 
     def sync

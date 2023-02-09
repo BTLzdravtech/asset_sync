@@ -2,7 +2,6 @@
 
 require "active_model"
 require "erb"
-require "yaml"
 
 module AssetSync
   class Config
@@ -29,12 +28,14 @@ module AssetSync
     attr_accessor :concurrent_uploads
     attr_accessor :concurrent_uploads_max_threads
     attr_accessor :remote_file_list_cache_file_path
+    attr_accessor :remote_file_list_remote_path
 
     # FOG configuration
     attr_accessor :fog_provider          # Currently Supported ['AWS', 'Rackspace']
     attr_accessor :fog_directory         # e.g. 'the-bucket-name'
     attr_accessor :fog_region            # e.g. 'eu-west-1'
     attr_reader   :fog_public            # e.g. true, false, "default"
+    attr_accessor :fog_options           # e.g. { enable_signature_v4_streaming: true }
 
     # Amazon AWS
     attr_accessor :aws_access_key_id
@@ -55,6 +56,7 @@ module AssetSync
     attr_accessor :rackspace_username, :rackspace_api_key, :rackspace_auth_url
 
     # Google Storage
+    attr_accessor :google_auth # when using generic auth (like access tokens)
     attr_accessor :google_storage_secret_access_key, :google_storage_access_key_id  # when using S3 interop
     attr_accessor :google_json_key_location # when using service accounts
     attr_accessor :google_json_key_string # when using service accounts
@@ -80,7 +82,7 @@ module AssetSync
     validates :rackspace_api_key,     :presence => true, :if => :rackspace?
     validates :google_storage_secret_access_key,  :presence => true, :if => :google_interop?
     validates :google_storage_access_key_id,      :presence => true, :if => :google_interop?
-    validates :google_project,                    :presence => true, :if => :google_service_account?
+    validates :google_project,                    :presence => true, :if => -> (c) { c.google_auth || c.google_service_account? }
     validate(:if => :google_service_account?) do
       unless google_json_key_location.present? || google_json_key_string.present?
         errors.add(:base, 'must provide either google_json_key_location or google_json_key_string if using Google service account')
@@ -108,6 +110,7 @@ module AssetSync
       self.concurrent_uploads = false
       self.concurrent_uploads_max_threads = 10
       self.remote_file_list_cache_file_path = nil
+      self.remote_file_list_remote_path = nil
       @additional_local_file_paths_procs = []
 
       load_yml! if defined?(::Rails) && yml_exists?
@@ -160,7 +163,7 @@ module AssetSync
     end
 
     def google_interop?
-      google? && google_json_key_location.nil? && google_json_key_string.nil?
+      google? && google_auth.nil? && google_json_key_location.nil? && google_json_key_string.nil?
     end
 
     def google_service_account?
@@ -184,7 +187,7 @@ module AssetSync
     end
 
     def yml
-      @yml ||= ::YAML.load(::ERB.new(IO.read(yml_path)).result)[::Rails.env] || {}
+      @yml ||= ::AssetSync.load_yaml(::ERB.new(IO.read(yml_path)).result)[::Rails.env] || {}
     end
 
     def yml_path
@@ -245,6 +248,7 @@ module AssetSync
       self.log_silently           = yml["log_silently"] if yml.has_key?("log_silently")
       self.always_upload          = yml["always_upload"] if yml.has_key?("always_upload")
       self.ignored_files          = yml["ignored_files"] if yml.has_key?("ignored_files")
+      self.prefix                 = yml["prefix"] if yml.has_key?("prefix")
       self.custom_headers         = yml["custom_headers"] if yml.has_key?("custom_headers")
       self.run_on_precompile      = yml["run_on_precompile"] if yml.has_key?("run_on_precompile")
       self.invalidate             = yml["invalidate"] if yml.has_key?("invalidate")
@@ -254,6 +258,7 @@ module AssetSync
       self.concurrent_uploads     = yml['concurrent_uploads'] if yml.has_key?('concurrent_uploads')
       self.concurrent_uploads_max_threads = yml['concurrent_uploads_max_threads'] if yml.has_key?('concurrent_uploads_max_threads')
       self.remote_file_list_cache_file_path = yml['remote_file_list_cache_file_path'] if yml.has_key?('remote_file_list_cache_file_path')
+      self.remote_file_list_remote_path = yml['remote_file_list_remote_path'] if yml.has_key?('remote_file_list_remote_path')
 
       self.azure_storage_account_name = yml['azure_storage_account_name'] if yml.has_key?("azure_storage_account_name")
       self.azure_storage_access_key   = yml['azure_storage_access_key'] if yml.has_key?("azure_storage_access_key")
@@ -306,7 +311,9 @@ module AssetSync
         options.merge!({ :rackspace_region => fog_region }) if fog_region
         options.merge!({ :rackspace_auth_url => rackspace_auth_url }) if rackspace_auth_url
       elsif google?
-        if google_json_key_location
+        if google_auth
+          options.merge!({:google_auth => google_auth, :google_project => google_project})
+        elsif google_json_key_location
           options.merge!({:google_json_key_location => google_json_key_location, :google_project => google_project})
         elsif google_json_key_string
           options.merge!({:google_json_key_string => google_json_key_string, :google_project => google_project})
@@ -335,6 +342,7 @@ module AssetSync
         raise ArgumentError, "AssetSync Unknown provider: #{fog_provider} only AWS, Rackspace and Google are supported currently."
       end
 
+      options.merge!(@fog_options) if @fog_options
       options
     end
 
