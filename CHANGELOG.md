@@ -18,6 +18,41 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Nothing
 
 
+## [2.19.2] - 2024-08-29
+
+### Fixed
+
+- Avoid duplicate files in remote files list cache
+  (https://github.com/AssetSync/asset_sync/pull/439)
+- Drop trailing slash of prefix in #get_local_files
+  (https://github.com/AssetSync/asset_sync/pull/425)
+
+
+## [2.19.1] - 2023-08-17
+
+### Fixed
+
+- Fix issues from https://github.com/AssetSync/asset_sync/pull/435
+  - https://github.com/AssetSync/asset_sync/commit/35bef657e9c65268e4888d489950184b238ba13f
+  - https://github.com/AssetSync/asset_sync/pull/437
+
+
+## [2.19.0] - 2023-08-15
+
+### Added
+
+- Add brotli support (new option `compression` which supports both gzip/brotli to replace now deprecated `gzip_compression`)
+  (https://github.com/AssetSync/asset_sync/pull/435)
+
+
+## [2.18.1] - 2023-08-02
+
+### Changed
+
+- Respect explicitly set `Rails.application.config.assets.manifest`
+  (https://github.com/AssetSync/asset_sync/pull/434)
+
+
 ## [2.18.0] - 2023-01-30
 
 ### Added
@@ -1078,7 +1113,11 @@ Changes:
     * Merge branch 'sinatra'
 
 
-[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.17.0...HEAD
+[Unreleased]: https://github.com/AssetSync/asset_sync/compare/v2.19.1...HEAD
+[2.19.1]: https://github.com/AssetSync/asset_sync/compare/v2.19.0...v2.19.1
+[2.19.0]: https://github.com/AssetSync/asset_sync/compare/v2.18.1...v2.19.0
+[2.18.1]: https://github.com/AssetSync/asset_sync/compare/v2.18.0...v2.18.1
+[2.18.0]: https://github.com/AssetSync/asset_sync/compare/v2.17.0...v2.18.0
 [2.17.0]: https://github.com/AssetSync/asset_sync/compare/v2.16.0...v2.17.0
 [2.16.0]: https://github.com/AssetSync/asset_sync/compare/v2.15.3...v2.16.0
 [2.15.3]: https://github.com/AssetSync/asset_sync/compare/v2.15.2...v2.15.3

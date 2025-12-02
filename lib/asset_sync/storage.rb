@@ -7,6 +7,11 @@ module AssetSync
     REGEXP_FINGERPRINTED_FILES = /\A(.*)\/(.+)-[^\.]+\.([^\.]+)\z/m
     REGEXP_ASSETS_TO_CACHE_CONTROL = /-[0-9a-fA-F]{32,}$/
 
+    CONTENT_ENCODING = {
+      'gz' => 'gzip',
+      'br' => 'br',
+    }.freeze
+
     class BucketNotFound < StandardError;
     end
 
@@ -59,7 +64,7 @@ module AssetSync
       return [] unless self.config.include_manifest
 
       if ActionView::Base.respond_to?(:assets_manifest)
-        manifest = Sprockets::Manifest.new(ActionView::Base.assets_manifest.environment, ActionView::Base.assets_manifest.dir)
+        manifest = Sprockets::Manifest.new(ActionView::Base.assets_manifest.environment, ActionView::Base.assets_manifest.dir, self.config.manifest_path)
         manifest_path = manifest.filename
       else
         manifest_path = self.config.manifest_path
@@ -103,7 +108,7 @@ module AssetSync
       return if ignore_existing_remote_files?
 
       File.open(self.remote_file_list_cache_file_path, 'w') do |file|
-        uploaded = local_files_to_upload + remote_files
+        uploaded = (local_files_to_upload + remote_files).uniq.sort
         file.write(uploaded.to_json)
       end
     end
@@ -139,7 +144,7 @@ module AssetSync
       if self.config.manifest
         if ActionView::Base.respond_to?(:assets_manifest)
           log "Using: Rails 4.0 manifest access"
-          manifest = Sprockets::Manifest.new(ActionView::Base.assets_manifest.environment, ActionView::Base.assets_manifest.dir)
+          manifest = Sprockets::Manifest.new(ActionView::Base.assets_manifest.environment, ActionView::Base.assets_manifest.dir, self.config.manifest_path)
           return manifest.assets.values.map { |f| File.join(self.config.assets_prefix, f) }
         elsif File.exist?(self.config.manifest_path)
           log "Using: Manifest #{self.config.manifest_path}"
@@ -166,7 +171,7 @@ module AssetSync
 
       log "Using: Directory Search of #{path}/#{self.config.assets_prefix}"
       Dir.chdir(path) do
-        to_load = self.config.assets_prefix.present? ? "#{self.config.assets_prefix}/**/**" : '**/**'
+        to_load = self.config.assets_prefix.present? ? File.join(self.config.assets_prefix, '/**/**') : '**/**'
         Dir[to_load]
       end
     end
@@ -211,7 +216,7 @@ module AssetSync
       one_year = 31557600
       ext = File.extname(f)[1..-1]
       mime = MultiMime.lookup(ext)
-      gzip_file_handle = nil
+      compressed_file_handle = nil
       file_handle = File.open("#{path}/#{f}")
       file = {
         :key => f,
@@ -255,41 +260,45 @@ module AssetSync
       end
 
 
-      gzipped = "#{path}/#{f}.gz"
       ignore = false
+      if config.compression
+        compressed_name = "#{path}/#{f}.#{config.compression}"
 
-      if config.gzip? && File.extname(f) == ".gz"
-        # Don't bother uploading gzipped assets if we are in gzip_compression mode
-        # as we will overwrite file.css with file.css.gz if it exists.
-        log "Ignoring: #{f}"
-        ignore = true
-      elsif config.gzip? && File.exist?(gzipped)
-        original_size = File.size("#{path}/#{f}")
-        gzipped_size = File.size(gzipped)
+        # `File.extname` returns value with `.` prefix, `config.compression` contains value without `.`
+        if File.extname(f)[1..-1] == config.compression
+          # Don't bother uploading compressed assets if we are in compression mode
+          # as we will overwrite file.css with file.css.gz if it exists.
+          log "Ignoring: #{f}"
+          ignore = true
+        elsif File.exist?(compressed_name)
+          original_size = File.size("#{path}/#{f}")
+          compressed_size = File.size(compressed_name)
 
-        if gzipped_size < original_size
-          percentage = ((gzipped_size.to_f/original_size.to_f)*100).round(2)
-          gzip_file_handle = File.open(gzipped)
-          file.merge!({
-                        :key => f,
-                        :body => gzip_file_handle,
-                        :content_encoding => 'gzip'
-                      })
-          log "Uploading: #{gzipped} in place of #{f} saving #{percentage}%"
-        else
-          percentage = ((original_size.to_f/gzipped_size.to_f)*100).round(2)
-          log "Uploading: #{f} instead of #{gzipped} (compression increases this file by #{percentage}%)"
+          if compressed_size < original_size
+            percentage = ((compressed_size.to_f/original_size.to_f)*100).round(2)
+            compressed_file_handle = File.open(compressed_name)
+            file.merge!({
+                          :key => f,
+                          :body => compressed_file_handle,
+                          :content_encoding => CONTENT_ENCODING[config.compression]
+                        })
+            log "Uploading: #{compressed_name} in place of #{f} saving #{percentage}%"
+          else
+            percentage = ((original_size.to_f/compressed_size.to_f)*100).round(2)
+            log "Uploading: #{f} instead of #{compressed_name} (compression increases this file by #{percentage}%)"
+          end
         end
       else
-        if !config.gzip? && File.extname(f) == ".gz"
-          # set content encoding for gzipped files this allows cloudfront to properly handle requests with Accept-Encoding
+        compressed_encoding = CONTENT_ENCODING[File.extname(f).delete('.')]
+        if compressed_encoding
+          # set content encoding for compressed files this allows cloudfront to properly handle requests with Accept-Encoding
           # http://docs.amazonwebservices.com/AmazonCloudFront/latest/DeveloperGuide/ServingCompressedFiles.html
           uncompressed_filename = f[0..-4]
           ext = File.extname(uncompressed_filename)[1..-1]
           mime = MultiMime.lookup(ext)
           file.merge!({
             :content_type     => mime,
-            :content_encoding => 'gzip'
+            :content_encoding => compressed_encoding
           })
         end
         log "Uploading: #{f}"
@@ -303,7 +312,7 @@ module AssetSync
 
       bucket.files.create( file ) unless ignore
       file_handle.close
-      gzip_file_handle.close if gzip_file_handle
+      compressed_file_handle.close if compressed_file_handle
     end
 
     def upload_files

@@ -59,8 +59,8 @@ describe AssetSync do
       expect(AssetSync.config.existing_remote_files).to eq("keep")
     end
 
-    it "should default gzip_compression to false" do
-      expect(AssetSync.config.gzip_compression).to be_falsey
+    it "should default compression to nil" do
+      expect(AssetSync.config.compression).to be_nil
     end
 
     it "should default manifest to false" do
@@ -139,8 +139,8 @@ describe AssetSync do
       expect(AssetSync.config.existing_remote_files).to eq("keep")
     end
 
-    it "should default gzip_compression to false" do
-      expect(AssetSync.config.gzip_compression).to be_falsey
+    it "should default compression to nil" do
+      expect(AssetSync.config.compression).to be_nil
     end
 
     it "should default manifest to false" do
@@ -230,8 +230,8 @@ describe AssetSync do
       AssetSync.config.gzip_compression = true
     end
 
-    it "config.gzip? should be true" do
-      expect(AssetSync.config.gzip?).to be_truthy
+    it "config.compression should be 'gz'" do
+      expect(AssetSync.config.compression).to eq("gz")
     end
   end
 
@@ -257,6 +257,11 @@ describe AssetSync do
     it "config.manifest_path should default to public/custom_assets.." do
       Rails.application.config.assets.prefix = 'custom_assets'
       expect(AssetSync.config.manifest_path).to match(/public\/custom_assets\/manifest.yml/)
+    end
+
+    it "config.manifest_path should point to explicit path" do
+      Rails.application.config.assets.manifest = 'config/manifest.json'
+      expect(AssetSync.config.manifest_path).to start_with('config/manifest.json')
     end
   end
 
